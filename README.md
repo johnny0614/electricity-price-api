@@ -10,7 +10,7 @@ mean electricity price for a specific state.
 ## The challenge
 Your web API should:
 
-* Access the provided data from S3
+* Access the provided data
 * Run a web server with at least one endpoint that accepts a ``state`` argument and
 calculates the mean price for that state
 * This application should be dockerized
@@ -22,18 +22,11 @@ the docker container
 * You may use any Python web framework that you like
 * You may use any additional Python packages/frameworks that you think are appropriate
 * You may use any version of Docker that is not end of life
-* You will be provided with the access details to an S3 bucket containing JSON data
-of the following format:
-
-```json
-[
-  {
-    "state": "string",
-    "price": "number",
-    "timestamp": "string"
-  }
-]
-```
+* You are provided the data in the ``data/`` directory, which contains a CSV with three
+columns:
+    * ``state``: The state for which the model is run
+    * ``price``: The price that is modelled
+    * ``timestamp``: The start of the time period for which the price is modelled
 
 ## What we are assessing
 
