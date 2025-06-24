@@ -30,7 +30,7 @@ of the following format:
   {
     "state": "string",
     "price": "number",
-    "timestamp": "number"
+    "timestamp": "string"
   }
 ]
 ```
