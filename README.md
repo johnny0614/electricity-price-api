@@ -3,8 +3,8 @@
 In this challenge, you will build a Python-based web service that provides electricity
 price information based on historical data.
 
-We have uploaded a week's worth of half-hourly electricity prices for each state to an 
-S3 bucket. Your task is to create a web API that allows clients to retrieve the
+We have uploaded a week's worth of half-hourly electricity prices for each state to a
+CSV. Your task is to create a web API that allows clients to retrieve the
 mean electricity price for a specific state.
 
 ## The challenge
