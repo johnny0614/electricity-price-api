@@ -21,6 +21,9 @@ export class DataService {
 
   async loadData(): Promise<void> {
     try {
+      if (this.data.length !== 0) {
+        return;
+      }
       const csvData = await fs.promises.readFile(this.csvFilePath, 'utf8');
       const states = new Set<string>();
 

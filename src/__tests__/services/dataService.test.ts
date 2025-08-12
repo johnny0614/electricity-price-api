@@ -9,7 +9,9 @@ jest.mock('fs', () => ({
 
 describe('DataService', () => {
   let dataService: DataService;
-  const mockReadFile = fs.promises.readFile as jest.MockedFunction<typeof fs.promises.readFile>;
+  const mockReadFile = fs.promises.readFile as jest.MockedFunction<
+    typeof fs.promises.readFile
+  >;
   const testCsvPath = '/test/path/data.csv';
 
   const mockCsvData = `state,price,timestamp
@@ -37,15 +39,12 @@ QLD,75.50,2025-06-24 00:30:00`;
       await dataService.loadData();
       const data = dataService.getAllData();
 
-      expect(mockReadFile).toHaveBeenCalledWith(
-        testCsvPath,
-        'utf8'
-      );
+      expect(mockReadFile).toHaveBeenCalledWith(testCsvPath, 'utf8');
       expect(data).toHaveLength(6);
       expect(data[0]).toEqual({
         state: 'Vic',
         price: 81.52,
-        timestamp: '2025-06-24 00:00:00'
+        timestamp: '2025-06-24 00:00:00',
       });
     });
 
@@ -53,7 +52,9 @@ QLD,75.50,2025-06-24 00:30:00`;
       const error = new Error('ENOENT: no such file or directory');
       mockReadFile.mockRejectedValue(error);
 
-      await expect(dataService.loadData()).rejects.toThrow('Failed to load CSV data');
+      await expect(dataService.loadData()).rejects.toThrow(
+        'Failed to load CSV data'
+      );
     });
 
     it('should throw error when CSV data is malformed', async () => {
@@ -61,7 +62,9 @@ QLD,75.50,2025-06-24 00:30:00`;
 Vic,invalid_price,2025-06-24 00:00:00`;
       mockReadFile.mockResolvedValue(malformedCsv);
 
-      await expect(dataService.loadData()).rejects.toThrow('Failed to parse CSV data');
+      await expect(dataService.loadData()).rejects.toThrow(
+        'Failed to parse CSV data'
+      );
     });
 
     it('should handle empty CSV file', async () => {
@@ -83,7 +86,7 @@ Vic,invalid_price,2025-06-24 00:00:00`;
 
     it('should return data for existing state', () => {
       const vicData = dataService.getStateData('Vic');
-      
+
       expect(vicData).toHaveLength(2);
       expect(vicData[0].state).toBe('Vic');
       expect(vicData[0].price).toBe(81.52);
@@ -114,14 +117,14 @@ Vic,invalid_price,2025-06-24 00:00:00`;
     it('should calculate correct mean price for existing state', () => {
       const meanPrice = dataService.getMeanPrice('Vic');
       const expectedMean = (81.52 + 76.32) / 2; // 78.92
-      
+
       expect(meanPrice).toBeCloseTo(expectedMean, 2);
     });
 
     it('should calculate correct mean price for state with different prices', () => {
       const meanPrice = dataService.getMeanPrice('NSW');
-      const expectedMean = (90.15 + 85.20) / 2; // 87.675
-      
+      const expectedMean = (90.15 + 85.2) / 2; // 87.675
+
       expect(meanPrice).toBeCloseTo(expectedMean, 2);
     });
 
@@ -139,13 +142,13 @@ Vic,invalid_price,2025-06-24 00:00:00`;
       const singleDataCsv = `state,price,timestamp
 SA,100.50,2025-06-24 00:00:00`;
       mockReadFile.mockResolvedValue(singleDataCsv);
-      
+
       process.env.CSV_DATA_PATH = '/test/single-data.csv';
       const newDataService = new DataService();
       await newDataService.loadData();
-      
+
       const meanPrice = newDataService.getMeanPrice('SA');
-      expect(meanPrice).toBe(100.50);
+      expect(meanPrice).toBe(100.5);
     });
   });
 
@@ -157,7 +160,7 @@ SA,100.50,2025-06-24 00:00:00`;
 
     it('should return unique list of available states', () => {
       const states = dataService.getAvailableStates();
-      
+
       expect(states).toHaveLength(3);
       expect(states).toContain('Vic');
       expect(states).toContain('NSW');
@@ -168,7 +171,7 @@ SA,100.50,2025-06-24 00:00:00`;
       process.env.CSV_DATA_PATH = '/test/empty-data.csv';
       const emptyDataService = new DataService();
       const states = emptyDataService.getAvailableStates();
-      
+
       expect(states).toHaveLength(0);
     });
   });
@@ -176,7 +179,9 @@ SA,100.50,2025-06-24 00:00:00`;
   describe('constructor', () => {
     it('should throw error when CSV_DATA_PATH is not set and no csvFilePath provided', () => {
       delete process.env.CSV_DATA_PATH;
-      expect(() => new DataService()).toThrow('CSV_DATA_PATH environment variable is required or provide csvFilePath in constructor');
+      expect(() => new DataService()).toThrow(
+        'CSV_DATA_PATH environment variable is required or provide csvFilePath in constructor'
+      );
     });
 
     it('should use provided csvFilePath over environment variable', () => {
@@ -194,13 +199,28 @@ SA,100.50,2025-06-24 00:00:00`;
     });
   });
 
+  describe('caching behavior', () => {
+    it('should only call fs.readFile once when loadData is called multiple times', async () => {
+      mockReadFile.mockResolvedValue(mockCsvData);
+
+      await dataService.loadData();
+      await dataService.loadData();
+      await dataService.loadData();
+
+      expect(mockReadFile).toHaveBeenCalledTimes(1);
+      expect(mockReadFile).toHaveBeenCalledWith(testCsvPath, 'utf8');
+    });
+  });
+
   describe('data validation', () => {
     it('should validate price is a number', async () => {
       const invalidCsv = `state,price,timestamp
 Vic,not-a-number,2025-06-24 00:00:00`;
       mockReadFile.mockResolvedValue(invalidCsv);
 
-      await expect(dataService.loadData()).rejects.toThrow('Failed to parse CSV data');
+      await expect(dataService.loadData()).rejects.toThrow(
+        'Failed to parse CSV data'
+      );
     });
 
     it('should handle missing required fields', async () => {
@@ -208,7 +228,9 @@ Vic,not-a-number,2025-06-24 00:00:00`;
 Vic,,2025-06-24 00:00:00`;
       mockReadFile.mockResolvedValue(incompleteCsv);
 
-      await expect(dataService.loadData()).rejects.toThrow('Failed to parse CSV data');
+      await expect(dataService.loadData()).rejects.toThrow(
+        'Failed to parse CSV data'
+      );
     });
 
     it('should handle negative prices', async () => {
@@ -218,7 +240,7 @@ Vic,-10.50,2025-06-24 00:00:00`;
 
       await dataService.loadData();
       const meanPrice = dataService.getMeanPrice('Vic');
-      expect(meanPrice).toBe(-10.50);
+      expect(meanPrice).toBe(-10.5);
     });
   });
 });

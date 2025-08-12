@@ -32,7 +32,7 @@ describe('Auth Middleware', () => {
       validateCredentials: jest.fn(),
       generateToken: jest.fn(),
     } as any;
-    
+
     __setAuthService(mockAuthService);
   });
 
@@ -48,20 +48,40 @@ describe('Auth Middleware', () => {
       mockRequest.headers = {
         authorization: 'Bearer validtoken123',
       };
-      mockAuthService.validateToken.mockReturnValue({ username: 'testuser', iat: 123456, exp: 789012 });
+      mockAuthService.validateToken.mockReturnValue({
+        username: 'testuser',
+        iat: 123456,
+        exp: 789012,
+      });
 
-      authMiddleware(mockRequest as AuthenticatedRequest, mockResponse as Response, nextFunction);
+      authMiddleware(
+        mockRequest as AuthenticatedRequest,
+        mockResponse as Response,
+        nextFunction
+      );
 
-      expect(mockAuthService.validateToken).toHaveBeenCalledWith('validtoken123');
+      expect(mockAuthService.validateToken).toHaveBeenCalledWith(
+        'validtoken123'
+      );
       expect(nextFunction).toHaveBeenCalled();
-      expect(mockRequest.user).toEqual({ username: 'testuser', iat: 123456, exp: 789012 });
+      expect(mockRequest.user).toEqual({
+        username: 'testuser',
+        iat: 123456,
+        exp: 789012,
+      });
     });
 
     it('should return 401 when no Authorization header is provided', () => {
-      authMiddleware(mockRequest as AuthenticatedRequest, mockResponse as Response, nextFunction);
+      authMiddleware(
+        mockRequest as AuthenticatedRequest,
+        mockResponse as Response,
+        nextFunction
+      );
 
       expect(mockResponse.status).toHaveBeenCalledWith(401);
-      expect(mockResponse.json).toHaveBeenCalledWith({ error: 'Access token required' });
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        error: 'Access token required',
+      });
       expect(nextFunction).not.toHaveBeenCalled();
     });
 
@@ -70,10 +90,16 @@ describe('Auth Middleware', () => {
         authorization: 'invalidtoken123',
       };
 
-      authMiddleware(mockRequest as AuthenticatedRequest, mockResponse as Response, nextFunction);
+      authMiddleware(
+        mockRequest as AuthenticatedRequest,
+        mockResponse as Response,
+        nextFunction
+      );
 
       expect(mockResponse.status).toHaveBeenCalledWith(401);
-      expect(mockResponse.json).toHaveBeenCalledWith({ error: 'Access token required' });
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        error: 'Access token required',
+      });
       expect(nextFunction).not.toHaveBeenCalled();
     });
 
@@ -82,10 +108,16 @@ describe('Auth Middleware', () => {
         authorization: 'Bearer ',
       };
 
-      authMiddleware(mockRequest as AuthenticatedRequest, mockResponse as Response, nextFunction);
+      authMiddleware(
+        mockRequest as AuthenticatedRequest,
+        mockResponse as Response,
+        nextFunction
+      );
 
       expect(mockResponse.status).toHaveBeenCalledWith(401);
-      expect(mockResponse.json).toHaveBeenCalledWith({ error: 'Access token required' });
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        error: 'Access token required',
+      });
       expect(nextFunction).not.toHaveBeenCalled();
     });
   });
@@ -97,11 +129,19 @@ describe('Auth Middleware', () => {
       };
       mockAuthService.validateToken.mockReturnValue(null);
 
-      authMiddleware(mockRequest as AuthenticatedRequest, mockResponse as Response, nextFunction);
+      authMiddleware(
+        mockRequest as AuthenticatedRequest,
+        mockResponse as Response,
+        nextFunction
+      );
 
-      expect(mockAuthService.validateToken).toHaveBeenCalledWith('invalidtoken');
+      expect(mockAuthService.validateToken).toHaveBeenCalledWith(
+        'invalidtoken'
+      );
       expect(mockResponse.status).toHaveBeenCalledWith(401);
-      expect(mockResponse.json).toHaveBeenCalledWith({ error: 'Invalid token' });
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        error: 'Invalid token',
+      });
       expect(nextFunction).not.toHaveBeenCalled();
     });
 
@@ -113,10 +153,16 @@ describe('Auth Middleware', () => {
         throw new Error('Token validation error');
       });
 
-      authMiddleware(mockRequest as AuthenticatedRequest, mockResponse as Response, nextFunction);
+      authMiddleware(
+        mockRequest as AuthenticatedRequest,
+        mockResponse as Response,
+        nextFunction
+      );
 
       expect(mockResponse.status).toHaveBeenCalledWith(401);
-      expect(mockResponse.json).toHaveBeenCalledWith({ error: 'Invalid token' });
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        error: 'Invalid token',
+      });
       expect(nextFunction).not.toHaveBeenCalled();
     });
   });
@@ -129,7 +175,11 @@ describe('Auth Middleware', () => {
       const mockUser = { username: 'testuser', iat: 123456, exp: 789012 };
       mockAuthService.validateToken.mockReturnValue(mockUser);
 
-      authMiddleware(mockRequest as AuthenticatedRequest, mockResponse as Response, nextFunction);
+      authMiddleware(
+        mockRequest as AuthenticatedRequest,
+        mockResponse as Response,
+        nextFunction
+      );
 
       expect(mockRequest.user).toEqual(mockUser);
       expect(nextFunction).toHaveBeenCalled();
@@ -141,7 +191,11 @@ describe('Auth Middleware', () => {
       };
       mockAuthService.validateToken.mockReturnValue(null);
 
-      authMiddleware(mockRequest as AuthenticatedRequest, mockResponse as Response, nextFunction);
+      authMiddleware(
+        mockRequest as AuthenticatedRequest,
+        mockResponse as Response,
+        nextFunction
+      );
 
       expect(mockRequest.user).toBeUndefined();
       expect(nextFunction).not.toHaveBeenCalled();
