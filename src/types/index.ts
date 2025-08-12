@@ -24,3 +24,14 @@ export interface ErrorResponse {
   error: string;
 }
 
+export interface PriceResponse {
+  state: string;
+  meanPrice: number;
+  recordCount: number;
+}
+
+export interface PriceRecord {
+  state: string;
+  price: number;
+  timestamp: string;
+}
