@@ -1,0 +1,181 @@
+image: node:18
+
+definitions:
+  services:
+    docker:
+      memory: 2048
+
+  steps:
+    - step: &build-test
+        name: Build and Test
+        caches:
+          - node
+        script:
+          - npm ci
+          - npm run lint
+          - npm run build
+          - npm test
+        artifacts:
+          - dist/**
+          - node_modules/**
+
+    - step: &build-docker
+        name: Build Docker Image
+        services:
+          - docker
+        caches:
+          - docker
+        script:
+          - export IMAGE_NAME=$BITBUCKET_REPO_SLUG
+          - export IMAGE_TAG=${BITBUCKET_COMMIT::7}
+          - docker build -t $IMAGE_NAME:$IMAGE_TAG .
+          - docker tag $IMAGE_NAME:$IMAGE_TAG $IMAGE_NAME:latest
+          - docker save $IMAGE_NAME:$IMAGE_TAG --output tmp-image.docker
+        artifacts:
+          - tmp-image.docker
+
+    - step: &deploy-staging
+        name: Deploy to Staging
+        deployment: staging
+        services:
+          - docker
+        script:
+          - export IMAGE_NAME=$BITBUCKET_REPO_SLUG
+          - export IMAGE_TAG=${BITBUCKET_COMMIT::7}
+          - docker load --input tmp-image.docker
+          # Configure AWS CLI
+          - pipe: atlassian/aws-cli:2.1.0
+            variables:
+              AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID
+              AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY
+              AWS_DEFAULT_REGION: $AWS_DEFAULT_REGION
+          # Login to ECR
+          - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+          # Tag and push to ECR
+          - docker tag $IMAGE_NAME:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPOSITORY_NAME:$IMAGE_TAG
+          - docker tag $IMAGE_NAME:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPOSITORY_NAME:staging
+          - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPOSITORY_NAME:$IMAGE_TAG
+          - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPOSITORY_NAME:staging
+          # Update ECS service
+          - pipe: atlassian/aws-ecs-deploy:1.6.2
+            variables:
+              AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID
+              AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY
+              AWS_DEFAULT_REGION: $AWS_DEFAULT_REGION
+              CLUSTER_NAME: $ECS_CLUSTER_NAME_STAGING
+              SERVICE_NAME: $ECS_SERVICE_NAME
+              TASK_DEFINITION: $ECS_TASK_DEFINITION_NAME
+              CONTAINER_NAME: $CONTAINER_NAME
+              IMAGE_NAME: $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPOSITORY_NAME:$IMAGE_TAG
+
+    - step: &deploy-production
+        name: Deploy to Production
+        deployment: production
+        trigger: manual
+        services:
+          - docker
+        script:
+          - export IMAGE_NAME=$BITBUCKET_REPO_SLUG
+          - export IMAGE_TAG=${BITBUCKET_COMMIT::7}
+          - docker load --input tmp-image.docker
+          # Configure AWS CLI
+          - pipe: atlassian/aws-cli:2.1.0
+            variables:
+              AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID_PROD
+              AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY_PROD
+              AWS_DEFAULT_REGION: $AWS_DEFAULT_REGION
+          # Login to ECR
+          - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID_PROD.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+          # Tag and push to ECR
+          - docker tag $IMAGE_NAME:$IMAGE_TAG $AWS_ACCOUNT_ID_PROD.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPOSITORY_NAME:$IMAGE_TAG
+          - docker tag $IMAGE_NAME:$IMAGE_TAG $AWS_ACCOUNT_ID_PROD.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPOSITORY_NAME:production
+          - docker push $AWS_ACCOUNT_ID_PROD.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPOSITORY_NAME:$IMAGE_TAG
+          - docker push $AWS_ACCOUNT_ID_PROD.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPOSITORY_NAME:production
+          # Update ECS service
+          - pipe: atlassian/aws-ecs-deploy:1.6.2
+            variables:
+              AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID_PROD
+              AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY_PROD
+              AWS_DEFAULT_REGION: $AWS_DEFAULT_REGION
+              CLUSTER_NAME: $ECS_CLUSTER_NAME_PROD
+              SERVICE_NAME: $ECS_SERVICE_NAME
+              TASK_DEFINITION: $ECS_TASK_DEFINITION_NAME
+              CONTAINER_NAME: $CONTAINER_NAME
+              IMAGE_NAME: $AWS_ACCOUNT_ID_PROD.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPOSITORY_NAME:$IMAGE_TAG
+
+    - step: &security-scan
+        name: Security Scan
+        script:
+          - npm audit --audit-level=high
+          - npx snyk test || echo "Security vulnerabilities found - review required"
+        after-script:
+          - echo "Security scan completed"
+
+    - step: &code-quality
+        name: Code Quality Check
+        script:
+          - npm ci
+          - npm run lint
+          - npm run test:coverage
+          - echo "Code quality checks passed"
+        artifacts:
+          - coverage/**
+
+pipelines:
+  default:
+    - step: *build-test
+    - step: *security-scan
+    - step: *code-quality
+
+  branches:
+    develop:
+      - step: *build-test
+      - step: *security-scan
+      - step: *build-docker
+      - step: *deploy-staging
+
+    staging:
+      - step: *build-test
+      - step: *security-scan
+      - step: *build-docker
+      - step: *deploy-staging
+
+    main:
+      - step: *build-test
+      - step: *security-scan
+      - step: *code-quality
+      - step: *build-docker
+      - step: *deploy-staging
+      - step: *deploy-production
+
+  pull-requests:
+    '**':
+      - step: *build-test
+      - step: *security-scan
+      - step: *code-quality
+
+  tags:
+    'v*':
+      - step: *build-test
+      - step: *security-scan
+      - step: *build-docker
+      - step: *deploy-production
+
+  custom:
+    deploy-staging:
+      - step: *build-test
+      - step: *build-docker
+      - step: *deploy-staging
+
+    deploy-production:
+      - step: *build-test
+      - step: *build-docker
+      - step: *deploy-production
+
+    full-pipeline:
+      - step: *build-test
+      - step: *security-scan
+      - step: *code-quality
+      - step: *build-docker
+      - step: *deploy-staging
+      - step: *deploy-production

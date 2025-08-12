@@ -1,0 +1,69 @@
+# Node modules
+node_modules
+npm-debug.log*
+
+# Build outputs
+dist
+build
+
+# Test coverage
+coverage
+*.lcov
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE files
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Documentation
+*.md
+!README.md
+
+# CI/CD files
+.github
+bitbucket-pipelines.yml
+Dockerfile
+.dockerignore
+
+# Test files
+src/__tests__
+*.test.ts
+*.spec.ts
+jest.config.*
+
+# Logs
+logs
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Optional npm cache directory
+.npm
+
+# ESLint cache
+.eslintcache
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Temporary files
+tmp
+temp
